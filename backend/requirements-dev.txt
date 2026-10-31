@@ -1,0 +1,3 @@
+pytest==9.2.0
+# Starlette's TestClient runs on httpx2; plain httpx is deprecated for it.
+httpx2==2.16.0

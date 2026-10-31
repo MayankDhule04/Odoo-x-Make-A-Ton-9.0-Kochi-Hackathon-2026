@@ -1,0 +1,12 @@
+# Store and check out text files with LF endings so files mounted into the
+# Linux containers behave the same on every machine (CRLF breaks shell scripts).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
