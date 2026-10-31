@@ -3,14 +3,18 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { api, ApiError } from "../../api/client.js";
+import type { Page } from "../../api/client.js";
 import {
   cardClass,
+  inputClass,
   inr,
   primaryBtn,
   secondaryBtn,
   statusBadgeClass,
   tableWrap,
+  type PickProduct,
   type SubscriptionDetail,
+  type SubscriptionLine,
   type SubscriptionStatus,
 } from "./types.js";
 
@@ -50,6 +54,150 @@ function actionsFor(id: number, status: SubscriptionStatus): Action[] {
     default:
       return [];
   }
+}
+
+type Preview = {
+  remaining_fraction: string;
+  old_total: string;
+  new_total: string;
+  credit: string;
+  charge: string;
+  net: string;
+};
+
+type LineInput = { product_id: string; quantity: string };
+
+function ChangePanel({
+  subscriptionId,
+  currentLines,
+}: {
+  subscriptionId: number;
+  currentLines: SubscriptionLine[];
+}) {
+  const queryClient = useQueryClient();
+  const [lines, setLines] = useState<LineInput[]>(
+    currentLines.map((l) => ({ product_id: String(l.product_id), quantity: String(l.quantity) })),
+  );
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const products = useQuery({
+    queryKey: ["products", "pick"],
+    queryFn: () => api.get<Page<PickProduct>>("/api/products", { page_size: "100" }),
+  });
+
+  function payload() {
+    return {
+      lines: lines
+        .filter((l) => l.product_id)
+        .map((l) => ({ product_id: Number(l.product_id), quantity: Number(l.quantity) || 1 })),
+    };
+  }
+
+  const previewMutation = useMutation({
+    mutationFn: () => api.post<Preview>(`/api/subscriptions/${subscriptionId}/change/preview`, payload()),
+    onSuccess: (p) => {
+      setPreview(p);
+      setError(null);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Preview failed"),
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: () => api.post(`/api/subscriptions/${subscriptionId}/change`, payload()),
+    onSuccess: () => {
+      setPreview(null);
+      void queryClient.invalidateQueries({ queryKey: ["subscription", subscriptionId] });
+      void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Change failed"),
+  });
+
+  return (
+    <div className={`space-y-3 ${cardClass}`}>
+      <h2 className="font-medium text-slate-900">Change plan / quantity (prorated)</h2>
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+      <div className="space-y-2">
+        {lines.map((l, i) => (
+          <div key={i} className="flex gap-2">
+            <select
+              value={l.product_id}
+              onChange={(e) =>
+                setLines((ls) => ls.map((x, idx) => (idx === i ? { ...x, product_id: e.target.value } : x)))
+              }
+              className={`flex-1 ${inputClass}`}
+            >
+              <option value="">Product…</option>
+              {(products.data?.items ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1"
+              value={l.quantity}
+              onChange={(e) =>
+                setLines((ls) => ls.map((x, idx) => (idx === i ? { ...x, quantity: e.target.value } : x)))
+              }
+              className={`w-24 ${inputClass}`}
+            />
+            <button
+              type="button"
+              onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}
+              className="rounded-lg px-2 text-slate-400 hover:text-red-600"
+              aria-label="Remove line"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => setLines((ls) => [...ls, { product_id: "", quantity: "1" }])}
+        className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+      >
+        + Add line
+      </button>
+
+      {preview && (
+        <div className="rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">
+            <span>Old total: {inr(preview.old_total)}</span>
+            <span>New total: {inr(preview.new_total)}</span>
+            <span>Credit: {inr(preview.credit)}</span>
+            <span>Charge: {inr(preview.charge)}</span>
+          </div>
+          <p className="mt-1 font-semibold">
+            Net now: {inr(preview.net)} ({(Number(preview.remaining_fraction) * 100).toFixed(1)}% of
+            period remaining)
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => previewMutation.mutate()}
+          disabled={previewMutation.isPending}
+          className={secondaryBtn}
+        >
+          {previewMutation.isPending ? "Previewing…" : "Preview"}
+        </button>
+        <button
+          type="button"
+          onClick={() => applyMutation.mutate()}
+          disabled={applyMutation.isPending}
+          className={primaryBtn}
+        >
+          {applyMutation.isPending ? "Applying…" : "Apply change"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function SubscriptionDetailPage() {
@@ -166,6 +314,11 @@ export default function SubscriptionDetailPage() {
           </tfoot>
         </table>
       </div>
+
+      {/* Mid-cycle change with proration (only while active) */}
+      {sub.status === "ACTIVE" && (
+        <ChangePanel subscriptionId={sub.id} currentLines={sub.lines} />
+      )}
 
       {/* Timeline */}
       <div>

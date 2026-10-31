@@ -86,6 +86,13 @@ function DiscountForm({ editing, onClose }: { editing: Discount | null; onClose:
     }
   }, [editing]);
 
+  type SimResult = {
+    active_subscriptions: number;
+    matched_count: number;
+    projected_monthly_impact: string;
+  };
+  const [sim, setSim] = useState<SimResult | null>(null);
+
   const mutation = useMutation({
     mutationFn: (body: unknown) =>
       editing
@@ -97,6 +104,20 @@ function DiscountForm({ editing, onClose }: { editing: Discount | null; onClose:
     },
     onError: (err) =>
       setError(err instanceof ApiError ? err.detail : "Failed to save discount"),
+  });
+
+  const simulate = useMutation({
+    mutationFn: () =>
+      api.post<SimResult>("/api/discounts/simulate", {
+        type,
+        value,
+        min_purchase_amount: minPurchase || "0",
+        min_quantity: Number(minQty) || 0,
+        target,
+        product_ids: target === "PRODUCT" ? productIds : [],
+      }),
+    onSuccess: (r) => setSim(r),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Simulation failed"),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -215,9 +236,25 @@ function DiscountForm({ editing, onClose }: { editing: Discount | null; onClose:
         <ProductPicker selected={productIds} onToggle={toggleProduct} />
       )}
 
+      {sim && (
+        <div className="rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900">
+          Would apply to <span className="font-semibold">{sim.matched_count}</span> of{" "}
+          {sim.active_subscriptions} active subscription(s) · projected monthly impact{" "}
+          <span className="font-semibold">{inr(sim.projected_monthly_impact)}</span>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button type="submit" disabled={mutation.isPending} className={primaryBtn}>
           {mutation.isPending ? "Saving…" : editing ? "Save" : "Create"}
+        </button>
+        <button
+          type="button"
+          onClick={() => simulate.mutate()}
+          disabled={simulate.isPending}
+          className={secondaryBtn}
+        >
+          {simulate.isPending ? "Simulating…" : "Simulate reach"}
         </button>
         <button type="button" onClick={onClose} className={secondaryBtn}>
           Cancel
