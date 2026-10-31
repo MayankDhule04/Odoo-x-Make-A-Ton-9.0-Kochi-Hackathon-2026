@@ -6,7 +6,25 @@
 
 A subscription management system: product catalog and plans, quotations, the subscription lifecycle, recurring invoices, payments, dunning, a finance dashboard and a customer self-service portal.
 
-**Status:** the platform foundation and the auth core (login, roles, customer scoping) are in place. Catalog, subscriptions, billing and reporting are in progress.
+**Status:** all core phases and the eight differentiators are implemented, with 126 backend tests passing. See the demo in [DEMO.md](DEMO.md) and the design in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Features
+
+| Area | What's built |
+|---|---|
+| Auth & RBAC | Email sign-up with a strong-password policy, JWT access + refresh, forgot/reset via a dev email outbox, admin-only staff creation, `require_role` on every route, customer data scoping |
+| Catalog | Products with computed margin, attribute variants with a price extra (effective price = base + extra), plans with billing period / min qty / availability window / 4 flags, tax rules, discount rules — full CRUD, admin only |
+| Subscriptions | Quotation templates, create-from-template, auto-numbered subscriptions, a DRAFT→QUOTATION→CONFIRMED→ACTIVE→(PAUSED)→CLOSED state machine with a history timeline, pause/resume/early-close/renew gated by plan flags |
+| Billing & invoices | Idempotent, transactional recurring billing, automatic tax and discount lines, invoice state machine with send (email) + printable render, sequential numbering |
+| Payments | Full/partial payments, PAID when covered, overpayment rejected, paid/outstanding/overdue status summary |
+| Reporting | Finance dashboard (KPIs, filters, CSV export) with every number from SQL aggregation and a <2s latency test |
+| **Differentiators** | #1 Dunning (retry schedule + auto-suspension), #2 Proration (live preview), #3 MRR waterfall (New/Expansion/Contraction/Churn + ARR/ARPU/churn), #4 Billing dry-run + exceptions queue, #5 Revenue-at-risk panel, #6 Discount simulator, #7 Immutable audit log, #8 Customer self-service portal |
+
+## Documentation
+
+- [HOW_TO_RUN.md](HOW_TO_RUN.md) — start, stop, logs, reset.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — containers, domains, state machines, data model, diagrams.
+- [DEMO.md](DEMO.md) — the 5-minute demo script.
 
 ## Demo credentials
 
