@@ -5,8 +5,9 @@ dropped and rebuilt from the Alembic migrations at the start of every run, and e
 test runs inside a transaction that is rolled back afterwards.
 """
 
+import itertools
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import create_db_engine, get_db
 from app.main import app
+from app.models.auth import User, UserRole
+from app.services.auth import create_user
+from app.tests.helpers import TEST_PASSWORD, auth_headers
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -86,7 +90,7 @@ def db_session(engine: Engine) -> Iterator[Session]:
 
 @pytest.fixture
 def client(db_session: Session) -> Iterator[TestClient]:
-    """API client whose requests use the rolled-back test session."""
+    """Anonymous API client whose requests use the rolled-back test session."""
 
     def override_get_db() -> Iterator[Session]:
         yield db_session
@@ -97,3 +101,79 @@ def client(db_session: Session) -> Iterator[TestClient]:
             yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+# --- Users and logged-in clients, for every domain's tests ------------------------------
+
+
+@pytest.fixture
+def make_user(db_session: Session) -> Callable[..., User]:
+    """Factory: make_user(UserRole.STAFF), make_user(email="a@example.com"), ...
+
+    CUSTOMER users also get their customer record. Every user's password is TEST_PASSWORD
+    unless you pass another one.
+    """
+    counter = itertools.count(1)
+
+    def _make_user(
+        role: UserRole = UserRole.CUSTOMER,
+        *,
+        email: str | None = None,
+        password: str = TEST_PASSWORD,
+        full_name: str | None = None,
+    ) -> User:
+        number = next(counter)
+        return create_user(
+            db_session,
+            email=email or f"{role.value.lower()}{number}@example.com",
+            password=password,
+            full_name=full_name or f"Test {role.value.title()} {number}",
+            role=role,
+        )
+
+    return _make_user
+
+
+@pytest.fixture
+def admin_user(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.ADMIN)
+
+
+@pytest.fixture
+def staff_user(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.STAFF)
+
+
+@pytest.fixture
+def customer_user(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.CUSTOMER)
+
+
+@pytest.fixture
+def client_as(client: TestClient) -> Iterator[Callable[[User], TestClient]]:
+    """Factory: client_as(user) returns an API client logged in as that user."""
+    opened: list[TestClient] = []
+
+    def _client_as(user: User) -> TestClient:
+        logged_in = TestClient(app, headers=auth_headers(user))
+        opened.append(logged_in)
+        return logged_in
+
+    yield _client_as
+    for logged_in in opened:
+        logged_in.close()
+
+
+@pytest.fixture
+def admin_client(client_as: Callable[[User], TestClient], admin_user: User) -> TestClient:
+    return client_as(admin_user)
+
+
+@pytest.fixture
+def staff_client(client_as: Callable[[User], TestClient], staff_user: User) -> TestClient:
+    return client_as(staff_user)
+
+
+@pytest.fixture
+def customer_client(client_as: Callable[[User], TestClient], customer_user: User) -> TestClient:
+    return client_as(customer_user)
