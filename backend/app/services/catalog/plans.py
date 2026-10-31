@@ -54,3 +54,10 @@ def update_plan(db: Session, plan: Plan, data: PlanUpdate, *, actor: User) -> Pl
             db, actor=actor, entity_type="plan", entity_id=plan.id, action="update", changes=changes,
         )
     return plan
+
+
+def delete_plan(db: Session, plan: Plan, *, actor: User) -> None:
+    plan_id = plan.id
+    db.delete(plan)
+    db.flush()
+    record_audit(db, actor=actor, entity_type="plan", entity_id=plan_id, action="delete")

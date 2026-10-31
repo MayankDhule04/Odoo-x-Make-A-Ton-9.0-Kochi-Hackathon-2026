@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { api, ApiError } from "../../api/client.js";
 import type { Page } from "../../api/client.js";
@@ -34,7 +34,7 @@ const FLAGS = [
 
 type FlagKey = (typeof FLAGS)[number]["key"];
 
-function AddPlanForm({ onClose }: { onClose: () => void }) {
+function PlanForm({ editing, onClose }: { editing: Plan | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("0.00");
@@ -50,14 +50,33 @@ function AddPlanForm({ onClose }: { onClose: () => void }) {
   });
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (editing) {
+      setName(editing.name);
+      setPrice(editing.price);
+      setBillingPeriod(editing.billing_period);
+      setMinQty(String(editing.min_quantity));
+      setAvailableFrom(editing.available_from);
+      setAvailableTo(editing.available_to);
+      setFlags({
+        auto_close: editing.auto_close,
+        allow_early_close: editing.allow_early_close,
+        allow_pause: editing.allow_pause,
+        allow_renew: editing.allow_renew,
+      });
+    }
+  }, [editing]);
+
   const mutation = useMutation({
-    mutationFn: (body: unknown) => api.post<Plan>("/api/plans", body),
+    mutationFn: (body: unknown) =>
+      editing
+        ? api.patch<Plan>(`/api/plans/${editing.id}`, body)
+        : api.post<Plan>("/api/plans", body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["plans"] });
       onClose();
     },
-    onError: (err) =>
-      setError(err instanceof ApiError ? err.detail : "Failed to create plan"),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : "Failed to save plan"),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -76,10 +95,8 @@ function AddPlanForm({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className={`mb-4 space-y-3 ${cardClass}`}>
-      <h2 className="font-medium text-slate-900">New Plan</h2>
-      {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
+      <h2 className="font-medium text-slate-900">{editing ? "Edit" : "New"} Plan</h2>
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
@@ -157,7 +174,7 @@ function AddPlanForm({ onClose }: { onClose: () => void }) {
 
       <div className="flex gap-2">
         <button type="submit" disabled={mutation.isPending} className={primaryBtn}>
-          {mutation.isPending ? "Creating…" : "Create"}
+          {mutation.isPending ? "Saving…" : editing ? "Save" : "Create"}
         </button>
         <button type="button" onClick={onClose} className={secondaryBtn}>
           Cancel
@@ -168,7 +185,9 @@ function AddPlanForm({ onClose }: { onClose: () => void }) {
 }
 
 export default function PlansPage() {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Plan | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["plans"],
@@ -181,6 +200,21 @@ export default function PlansPage() {
   });
   const selectableIds = new Set((selectableQuery.data ?? []).map((p) => p.id));
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/plans/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plans"] }),
+  });
+
+  function startEdit(plan: Plan) {
+    setEditing(plan);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditing(null);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -190,12 +224,16 @@ export default function PlansPage() {
             A plan outside its availability window can't be used for new subscriptions.
           </p>
         </div>
-        <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryBtn}>
+        <button
+          type="button"
+          onClick={() => (showForm ? closeForm() : setShowForm(true))}
+          className={primaryBtn}
+        >
           {showForm ? "Close" : "Add Plan"}
         </button>
       </div>
 
-      {showForm && <AddPlanForm onClose={() => setShowForm(false)} />}
+      {showForm && <PlanForm editing={editing} onClose={closeForm} />}
 
       <div className={tableWrap}>
         {isLoading ? (
@@ -215,6 +253,7 @@ export default function PlansPage() {
                 <th className="px-4 py-3">Window</th>
                 <th className="px-4 py-3">Flags</th>
                 <th className="px-4 py-3">Selectable now</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -247,6 +286,24 @@ export default function PlansPage() {
                     >
                       {selectableIds.has(p.id) ? "Yes" : "No"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(p)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete plan "${p.name}"?`)) deleteMutation.mutate(p.id);
+                      }}
+                      className="ml-3 text-sm font-medium text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}

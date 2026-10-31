@@ -36,6 +36,12 @@ class ProductVariantIn(BaseModel):
     attribute_id: int | None = None
 
 
+class ProductVariantUpdate(BaseModel):
+    value: str | None = Field(default=None, min_length=1, max_length=100)
+    price_extra: Decimal | None = MoneyField(default=None, ge=0)
+    attribute_id: int | None = None
+
+
 class ProductVariantRead(BaseModel):
     model_config = _FROM_ATTR
     id: int
@@ -134,6 +140,13 @@ class TaxCreate(BaseModel):
     inclusive: bool = False
 
 
+class TaxUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    percentage: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    applies_to: TaxAppliesTo | None = None
+    inclusive: bool | None = None
+
+
 class TaxRead(BaseModel):
     model_config = _FROM_ATTR
     id: int
@@ -164,6 +177,25 @@ class DiscountCreate(BaseModel):
         return self
 
 
+class DiscountUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    type: DiscountType | None = None
+    value: Decimal | None = MoneyField(default=None, ge=0)
+    min_purchase_amount: Decimal | None = MoneyField(default=None, ge=0)
+    min_quantity: int | None = Field(default=None, ge=0)
+    start_date: date | None = None
+    end_date: date | None = None
+    usage_limit: int | None = Field(default=None, ge=0)
+    target: DiscountTarget | None = None
+    product_ids: list[int] | None = None
+
+    @model_validator(mode="after")
+    def _dates_valid(self) -> "DiscountUpdate":
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
+
+
 class DiscountRead(BaseModel):
     model_config = _FROM_ATTR
     id: int
@@ -177,3 +209,4 @@ class DiscountRead(BaseModel):
     usage_limit: int
     usage_count: int
     target: DiscountTarget
+    product_ids: list[int] = []

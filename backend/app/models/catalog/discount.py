@@ -71,3 +71,8 @@ class Discount(TimestampMixin, Base):
     )
 
     products: Mapped[list["Product"]] = relationship(secondary=discount_products)
+
+    @property
+    def product_ids(self) -> list[int]:
+        """Ids of the products this discount is limited to (empty = all products)."""
+        return [p.id for p in self.products]

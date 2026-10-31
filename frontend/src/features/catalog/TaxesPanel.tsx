@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { api, ApiError } from "../../api/client.js";
 import type { Page } from "../../api/client.js";
@@ -13,7 +13,7 @@ import {
   type TaxAppliesTo,
 } from "./types.js";
 
-function AddTaxForm({ onClose }: { onClose: () => void }) {
+function TaxForm({ editing, onClose }: { editing: Tax | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [percentage, setPercentage] = useState("18.000");
@@ -21,14 +21,26 @@ function AddTaxForm({ onClose }: { onClose: () => void }) {
   const [inclusive, setInclusive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (editing) {
+      setName(editing.name);
+      setPercentage(editing.percentage);
+      setAppliesTo(editing.applies_to);
+      setInclusive(editing.inclusive);
+    }
+  }, [editing]);
+
   const mutation = useMutation({
-    mutationFn: (body: unknown) => api.post<Tax>("/api/taxes", body),
+    mutationFn: (body: unknown) =>
+      editing
+        ? api.patch<Tax>(`/api/taxes/${editing.id}`, body)
+        : api.post<Tax>("/api/taxes", body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["taxes"] });
       onClose();
     },
     onError: (err) =>
-      setError(err instanceof ApiError ? err.detail : "Failed to create tax"),
+      setError(err instanceof ApiError ? err.detail : "Failed to save tax"),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -39,10 +51,8 @@ function AddTaxForm({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className={`mb-4 space-y-3 ${cardClass}`}>
-      <h2 className="font-medium text-slate-900">New Tax Rule</h2>
-      {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
+      <h2 className="font-medium text-slate-900">{editing ? "Edit" : "New"} Tax Rule</h2>
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
@@ -83,7 +93,7 @@ function AddTaxForm({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex gap-2">
         <button type="submit" disabled={mutation.isPending} className={primaryBtn}>
-          {mutation.isPending ? "Creating…" : "Create"}
+          {mutation.isPending ? "Saving…" : editing ? "Save" : "Create"}
         </button>
         <button type="button" onClick={onClose} className={secondaryBtn}>
           Cancel
@@ -94,11 +104,29 @@ function AddTaxForm({ onClose }: { onClose: () => void }) {
 }
 
 export default function TaxesPanel() {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Tax | null>(null);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["taxes"],
     queryFn: () => api.get<Page<Tax>>("/api/taxes", { page_size: "100" }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/taxes/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["taxes"] }),
+  });
+
+  function startEdit(tax: Tax) {
+    setEditing(tax);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditing(null);
+  }
 
   return (
     <div className="space-y-4">
@@ -106,12 +134,16 @@ export default function TaxesPanel() {
         <p className="text-sm text-slate-500">
           Admin-defined tax rules. Billing applies these per invoice line.
         </p>
-        <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryBtn}>
+        <button
+          type="button"
+          onClick={() => (showForm ? closeForm() : setShowForm(true))}
+          className={primaryBtn}
+        >
           {showForm ? "Close" : "Add Tax"}
         </button>
       </div>
 
-      {showForm && <AddTaxForm onClose={() => setShowForm(false)} />}
+      {showForm && <TaxForm editing={editing} onClose={closeForm} />}
 
       <div className={tableWrap}>
         {isLoading ? (
@@ -128,6 +160,7 @@ export default function TaxesPanel() {
                 <th className="px-4 py-3">Percentage</th>
                 <th className="px-4 py-3">Applies to</th>
                 <th className="px-4 py-3">Inclusive</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -137,6 +170,24 @@ export default function TaxesPanel() {
                   <td className="px-4 py-3 text-slate-700">{t.percentage}%</td>
                   <td className="px-4 py-3 text-slate-600">{t.applies_to}</td>
                   <td className="px-4 py-3 text-slate-600">{t.inclusive ? "Yes" : "No"}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(t)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete tax "${t.name}"?`)) deleteMutation.mutate(t.id);
+                      }}
+                      className="ml-3 text-sm font-medium text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

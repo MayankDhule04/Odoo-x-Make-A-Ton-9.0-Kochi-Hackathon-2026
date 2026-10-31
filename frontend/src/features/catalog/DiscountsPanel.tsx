@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { api, ApiError } from "../../api/client.js";
 import type { Page } from "../../api/client.js";
@@ -13,13 +13,51 @@ import {
   type Discount,
   type DiscountTarget,
   type DiscountType,
+  type Product,
 } from "./types.js";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function AddDiscountForm({ onClose }: { onClose: () => void }) {
+function ProductPicker({
+  selected,
+  onToggle,
+}: {
+  selected: number[];
+  onToggle: (id: number) => void;
+}) {
+  const { data } = useQuery({
+    queryKey: ["products", "picker"],
+    queryFn: () => api.get<Page<Product>>("/api/products", { page_size: "100" }),
+  });
+  const products = data?.items ?? [];
+
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="mb-2 text-sm font-medium text-slate-700">Limit to products</p>
+      {products.length === 0 ? (
+        <p className="text-sm text-slate-400">No products to choose from.</p>
+      ) : (
+        <div className="grid gap-1 sm:grid-cols-2">
+          {products.map((p) => (
+            <label key={p.id} className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={selected.includes(p.id)}
+                onChange={() => onToggle(p.id)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              {p.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiscountForm({ editing, onClose }: { editing: Discount | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [type, setType] = useState<DiscountType>("PERCENTAGE");
@@ -30,16 +68,35 @@ function AddDiscountForm({ onClose }: { onClose: () => void }) {
   const [endDate, setEndDate] = useState(today());
   const [usageLimit, setUsageLimit] = useState("0");
   const [target, setTarget] = useState<DiscountTarget>("SUBSCRIPTION");
+  const [productIds, setProductIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (editing) {
+      setName(editing.name);
+      setType(editing.type);
+      setValue(editing.value);
+      setMinPurchase(editing.min_purchase_amount);
+      setMinQty(String(editing.min_quantity));
+      setStartDate(editing.start_date);
+      setEndDate(editing.end_date);
+      setUsageLimit(String(editing.usage_limit));
+      setTarget(editing.target);
+      setProductIds(editing.product_ids ?? []);
+    }
+  }, [editing]);
+
   const mutation = useMutation({
-    mutationFn: (body: unknown) => api.post<Discount>("/api/discounts", body),
+    mutationFn: (body: unknown) =>
+      editing
+        ? api.patch<Discount>(`/api/discounts/${editing.id}`, body)
+        : api.post<Discount>("/api/discounts", body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["discounts"] });
       onClose();
     },
     onError: (err) =>
-      setError(err instanceof ApiError ? err.detail : "Failed to create discount"),
+      setError(err instanceof ApiError ? err.detail : "Failed to save discount"),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -55,15 +112,18 @@ function AddDiscountForm({ onClose }: { onClose: () => void }) {
       end_date: endDate,
       usage_limit: Number(usageLimit) || 0,
       target,
+      product_ids: target === "PRODUCT" ? productIds : [],
     });
+  }
+
+  function toggleProduct(id: number) {
+    setProductIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   }
 
   return (
     <form onSubmit={handleSubmit} className={`mb-4 space-y-3 ${cardClass}`}>
-      <h2 className="font-medium text-slate-900">New Discount Rule</h2>
-      {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
+      <h2 className="font-medium text-slate-900">{editing ? "Edit" : "New"} Discount Rule</h2>
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
@@ -150,9 +210,14 @@ function AddDiscountForm({ onClose }: { onClose: () => void }) {
           />
         </label>
       </div>
+
+      {target === "PRODUCT" && (
+        <ProductPicker selected={productIds} onToggle={toggleProduct} />
+      )}
+
       <div className="flex gap-2">
         <button type="submit" disabled={mutation.isPending} className={primaryBtn}>
-          {mutation.isPending ? "Creating…" : "Create"}
+          {mutation.isPending ? "Saving…" : editing ? "Save" : "Create"}
         </button>
         <button type="button" onClick={onClose} className={secondaryBtn}>
           Cancel
@@ -163,11 +228,29 @@ function AddDiscountForm({ onClose }: { onClose: () => void }) {
 }
 
 export default function DiscountsPanel() {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Discount | null>(null);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["discounts"],
     queryFn: () => api.get<Page<Discount>>("/api/discounts", { page_size: "100" }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/api/discounts/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["discounts"] }),
+  });
+
+  function startEdit(discount: Discount) {
+    setEditing(discount);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditing(null);
+  }
 
   return (
     <div className="space-y-4">
@@ -176,12 +259,16 @@ export default function DiscountsPanel() {
           Admin-only discount rules. They apply automatically on the next invoice and
           stop at expiry or the usage limit.
         </p>
-        <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryBtn}>
+        <button
+          type="button"
+          onClick={() => (showForm ? closeForm() : setShowForm(true))}
+          className={primaryBtn}
+        >
           {showForm ? "Close" : "Add Discount"}
         </button>
       </div>
 
-      {showForm && <AddDiscountForm onClose={() => setShowForm(false)} />}
+      {showForm && <DiscountForm editing={editing} onClose={closeForm} />}
 
       <div className={tableWrap}>
         {isLoading ? (
@@ -200,6 +287,7 @@ export default function DiscountsPanel() {
                 <th className="px-4 py-3">Window</th>
                 <th className="px-4 py-3">Target</th>
                 <th className="px-4 py-3">Usage</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -213,10 +301,33 @@ export default function DiscountsPanel() {
                   <td className="px-4 py-3 text-slate-600">
                     {d.start_date} → {d.end_date}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{d.target}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {d.target}
+                    {d.target === "PRODUCT" && d.product_ids.length > 0
+                      ? ` (${d.product_ids.length})`
+                      : ""}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
                     {d.usage_count}
                     {d.usage_limit > 0 ? ` / ${d.usage_limit}` : ""}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(d)}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete discount "${d.name}"?`)) deleteMutation.mutate(d.id);
+                      }}
+                      className="ml-3 text-sm font-medium text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}

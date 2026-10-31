@@ -66,6 +66,7 @@ export type Discount = {
   usage_limit: number;
   usage_count: number;
   target: DiscountTarget;
+  product_ids: number[];
 };
 
 export const PRODUCT_TYPES: ProductType[] = ["SERVICE", "SOFTWARE", "ADDON", "PHYSICAL"];

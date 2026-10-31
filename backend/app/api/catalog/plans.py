@@ -56,3 +56,12 @@ def update_plan(plan_id: int, body: PlanUpdate, db: DbSession, admin: AdminUser)
     db.commit()
     db.refresh(plan)
     return plan
+
+
+@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_plan(plan_id: int, db: DbSession, admin: AdminUser) -> None:
+    plan = catalog_service.get_plan(db, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found.")
+    catalog_service.delete_plan(db, plan, actor=admin)
+    db.commit()
