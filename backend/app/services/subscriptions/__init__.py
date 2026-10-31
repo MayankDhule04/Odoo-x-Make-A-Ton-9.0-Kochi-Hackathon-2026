@@ -1,5 +1,11 @@
 """Subscription services (Member 2): quotation templates, subscriptions, lifecycle."""
 
+from app.services.subscriptions.proration import (
+    adjustments_query,
+    apply_change,
+    pending_adjustments,
+    preview_change,
+)
 from app.services.subscriptions.subscriptions import (
     SubscriptionLookupError,
     create_from_template,
@@ -30,6 +36,10 @@ from app.services.subscriptions.transitions import (
 
 __all__ = [
     "SubscriptionLookupError",
+    "adjustments_query",
+    "apply_change",
+    "pending_adjustments",
+    "preview_change",
     "create_from_template",
     "create_subscription",
     "get_subscription",

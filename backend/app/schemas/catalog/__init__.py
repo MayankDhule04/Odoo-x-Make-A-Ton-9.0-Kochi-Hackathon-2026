@@ -196,6 +196,23 @@ class DiscountUpdate(BaseModel):
         return self
 
 
+class DiscountSimulateRequest(BaseModel):
+    """A draft rule to simulate against current active subscriptions."""
+    type: DiscountType
+    value: Decimal = MoneyField(ge=0)
+    min_purchase_amount: Decimal = MoneyField(default=Decimal("0.00"), ge=0)
+    min_quantity: int = Field(default=0, ge=0)
+    target: DiscountTarget = DiscountTarget.SUBSCRIPTION
+    product_ids: list[int] = []
+
+
+class DiscountSimulationResult(BaseModel):
+    active_subscriptions: int
+    matched_count: int
+    projected_monthly_impact: Decimal
+    currency: str = "INR"
+
+
 class DiscountRead(BaseModel):
     model_config = _FROM_ATTR
     id: int

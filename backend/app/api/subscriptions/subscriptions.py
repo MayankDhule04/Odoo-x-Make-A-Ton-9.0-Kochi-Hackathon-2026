@@ -15,7 +15,12 @@ from app.core.rbac import CurrentPrincipal, Principal, StaffOrAdmin
 from app.models.auth import User
 from app.models.subscriptions import Subscription
 from app.schemas.subscriptions import (
+    ChangePreviewRequest,
+    ChangeRequest,
+    ChangeResult,
     GenericTransitionRequest,
+    ProrationAdjustmentRead,
+    ProrationPreview,
     SubscriptionCreate,
     SubscriptionDetail,
     SubscriptionFromTemplate,
@@ -92,6 +97,63 @@ def subscription_history(
 ) -> Page[SubscriptionHistoryRead]:
     _visible_or_404(db, subscription_id, principal)
     return paginate(db, sub_service.history_query(db, subscription_id), params)
+
+
+# --- Proration: preview and apply a mid-cycle change (differentiator #2) -------------
+
+def _to_preview(p) -> ProrationPreview:
+    return ProrationPreview(
+        remaining_fraction=p.remaining_fraction,
+        old_total=p.old_total,
+        new_total=p.new_total,
+        credit=p.credit,
+        charge=p.charge,
+        net=p.net,
+    )
+
+
+@router.post("/{subscription_id}/change/preview", response_model=ProrationPreview)
+def preview_change(
+    subscription_id: int, body: ChangePreviewRequest, db: DbSession, principal: CurrentPrincipal
+) -> ProrationPreview:
+    """Live price preview for a plan/quantity change. Available to the owner too, so the
+    portal can show the proration before confirming."""
+    sub = _visible_or_404(db, subscription_id, principal)
+    try:
+        proration = sub_service.preview_change(db, sub, body.lines)
+    except SubscriptionLookupError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except TransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return _to_preview(proration)
+
+
+@router.post("/{subscription_id}/change", response_model=ChangeResult)
+def apply_change(subscription_id: int, body: ChangeRequest, db: DbSession, user: StaffOrAdmin) -> ChangeResult:
+    sub = sub_service.get_subscription(db, subscription_id)
+    if sub is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+    try:
+        sub, adjustments, proration = sub_service.apply_change(db, sub, body.lines, actor=user, note=body.note)
+    except SubscriptionLookupError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except TransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(sub)
+    return ChangeResult(
+        subscription=SubscriptionRead.model_validate(sub),
+        preview=_to_preview(proration),
+        adjustments=[ProrationAdjustmentRead.model_validate(a) for a in adjustments],
+    )
+
+
+@router.get("/{subscription_id}/adjustments", response_model=Page[ProrationAdjustmentRead])
+def subscription_adjustments(
+    subscription_id: int, db: DbSession, params: PaginationDep, principal: CurrentPrincipal
+) -> Page[ProrationAdjustmentRead]:
+    _visible_or_404(db, subscription_id, principal)
+    return paginate(db, sub_service.adjustments_query(subscription_id), params)
 
 
 # --- Lifecycle actions ---------------------------------------------------------------

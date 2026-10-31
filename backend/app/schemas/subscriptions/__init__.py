@@ -140,3 +140,40 @@ class TransitionRequest(BaseModel):
 
 class GenericTransitionRequest(TransitionRequest):
     to_status: SubscriptionStatus
+
+
+# --- Proration (differentiator #2) ---------------------------------------------------
+
+class ChangePreviewRequest(BaseModel):
+    """The proposed new set of lines for a mid-cycle change."""
+    lines: list[SubscriptionLineIn]
+
+
+class ChangeRequest(ChangePreviewRequest):
+    note: str | None = None
+
+
+class ProrationPreview(BaseModel):
+    remaining_fraction: Decimal
+    old_total: Decimal
+    new_total: Decimal
+    credit: Decimal
+    charge: Decimal
+    net: Decimal
+
+
+class ProrationAdjustmentRead(BaseModel):
+    model_config = _FROM_ATTR
+    id: int
+    subscription_id: int
+    description: str
+    amount: Decimal
+    applied: bool
+    invoice_id: int | None
+    created_at: datetime
+
+
+class ChangeResult(BaseModel):
+    subscription: SubscriptionRead
+    preview: ProrationPreview
+    adjustments: list[ProrationAdjustmentRead]

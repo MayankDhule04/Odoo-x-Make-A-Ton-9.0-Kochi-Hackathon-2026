@@ -5,6 +5,7 @@ from app.services.catalog.discounts import (
     delete_discount,
     get_discount,
     list_discounts,
+    simulate_discount,
     update_discount,
 )
 from app.services.catalog.plans import (
@@ -43,6 +44,7 @@ __all__ = [
     "get_discount",
     "list_discounts",
     "update_discount",
+    "simulate_discount",
     "create_plan",
     "delete_plan",
     "get_plan",

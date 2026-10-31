@@ -6,10 +6,22 @@ from app.core.db import DbSession
 from app.core.pagination import Page, PaginationDep, paginate
 from app.core.rbac import AdminUser
 from app.models.catalog import Discount
-from app.schemas.catalog import DiscountCreate, DiscountRead, DiscountUpdate
+from app.schemas.catalog import (
+    DiscountCreate,
+    DiscountRead,
+    DiscountSimulateRequest,
+    DiscountSimulationResult,
+    DiscountUpdate,
+)
 from app.services import catalog as catalog_service
 
 router = APIRouter(prefix="/discounts", tags=["catalog: discounts"])
+
+
+@router.post("/simulate", response_model=DiscountSimulationResult)
+def simulate_discount(body: DiscountSimulateRequest, db: DbSession, _admin: AdminUser) -> DiscountSimulationResult:
+    """Preview a discount rule's reach before saving it."""
+    return catalog_service.simulate_discount(db, body)
 
 
 @router.post("", response_model=DiscountRead, status_code=status.HTTP_201_CREATED)

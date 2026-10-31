@@ -62,3 +62,58 @@ def delete_discount(db: Session, discount: Discount, *, actor: User) -> None:
     db.delete(discount)
     db.flush()
     record_audit(db, actor=actor, entity_type="discount", entity_id=discount_id, action="delete")
+
+
+# --- Discount simulator (differentiator #6) ------------------------------------------
+
+from decimal import ROUND_HALF_UP, Decimal  # noqa: E402
+
+from app.models.catalog import BillingPeriod, Plan  # noqa: E402
+from app.models.subscriptions import Subscription, SubscriptionStatus  # noqa: E402
+from app.schemas.catalog import DiscountSimulateRequest, DiscountSimulationResult  # noqa: E402
+from app.schemas.catalog import DiscountType, DiscountTarget  # noqa: E402
+
+_ZERO = Decimal("0.00")
+_CENTS = Decimal("0.01")
+
+# Convert a per-period discount to a rough monthly figure for the projection.
+_MONTHLY_FACTOR = {
+    BillingPeriod.DAILY: Decimal("30"),
+    BillingPeriod.WEEKLY: Decimal("4"),
+    BillingPeriod.MONTHLY: Decimal("1"),
+    BillingPeriod.YEARLY: Decimal("1") / Decimal("12"),
+}
+
+
+def simulate_discount(db: Session, data: DiscountSimulateRequest) -> DiscountSimulationResult:
+    """How many current ACTIVE subscriptions the rule would hit, and the projected
+    monthly revenue impact."""
+    actives = list(
+        db.scalars(select(Subscription).where(Subscription.status == SubscriptionStatus.ACTIVE))
+    )
+    product_ids = set(data.product_ids)
+    matched = 0
+    impact = _ZERO
+
+    for sub in actives:
+        if data.target is DiscountTarget.PRODUCT:
+            lines = [line for line in sub.lines if line.product_id in product_ids]
+        else:
+            lines = list(sub.lines)
+        base = sum((line.amount for line in lines), _ZERO)
+        qty = sum((line.quantity for line in lines), 0)
+
+        if base <= _ZERO or base < data.min_purchase_amount or qty < data.min_quantity:
+            continue
+
+        matched += 1
+        per_period = data.value if data.type is DiscountType.FIXED else base * data.value / Decimal("100")
+        plan = db.get(Plan, sub.plan_id)
+        factor = _MONTHLY_FACTOR.get(plan.billing_period, Decimal("1")) if plan else Decimal("1")
+        impact += per_period * factor
+
+    return DiscountSimulationResult(
+        active_subscriptions=len(actives),
+        matched_count=matched,
+        projected_monthly_impact=impact.quantize(_CENTS, rounding=ROUND_HALF_UP),
+    )
