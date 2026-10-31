@@ -10,7 +10,18 @@ A subscription management system: product catalog and plans, quotations, the sub
 
 ## Demo credentials
 
-These will be added with the auth work: one admin, one staff user and one customer.
+The API creates these accounts automatically on startup if they don't exist. They're for local development and the demo only.
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@brightloop.dev` | `Admin@12345` |
+| Staff | `staff@brightloop.dev` | `Staff@12345` |
+| Customer | `customer@brightloop.dev` | `Customer@12345` |
+
+To call protected endpoints from the API docs (http://localhost:8000/api/docs):
+1. Use `POST /api/auth/login` with one of the accounts above.
+2. Copy `access_token` from the response.
+3. Click **Authorize** and paste the token. It's valid for 15 minutes.
 
 ## Architecture
 
@@ -22,7 +33,7 @@ flowchart LR
 ```
 
 - **web**: React 19, TypeScript, Tailwind CSS 4, TanStack Query and Table, Recharts. The Vite dev server proxies `/api` to the API, so the browser only ever talks to one origin.
-- **api**: FastAPI with SQLAlchemy 2.0 and Alembic. When the container starts it applies pending migrations, then serves with auto-reload.
+- **api**: FastAPI with SQLAlchemy 2 and Alembic. When the container starts it applies pending migrations, creates the demo accounts if they're missing, then serves with auto-reload.
 - **db**: PostgreSQL 17 with data in the `brightloop_db_data` Docker volume.
 
 The full stack and coding conventions are in [.kiro/steering/tech.md](.kiro/steering/tech.md), and the folder layout and ownership are in [.kiro/steering/structure.md](.kiro/steering/structure.md).

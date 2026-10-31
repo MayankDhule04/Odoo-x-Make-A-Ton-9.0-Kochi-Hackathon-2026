@@ -19,9 +19,33 @@
 - **Tests**: every feature ships with tests.
 - "More than 8 characters" means 9 or more.
 
+## Auth and RBAC (use these, don't reimplement them)
+Every route signature takes one of these from `app.core.rbac`:
+
+| Dependency | Who gets through | What it gives you |
+|---|---|---|
+| `AdminUser` | ADMIN | the `User` |
+| `StaffOrAdmin` | STAFF, ADMIN | the `User` |
+| `CurrentUser` | any logged-in user | the `User` |
+| `CurrentCustomer` | CUSTOMER | their `Customer` row |
+| `CurrentPrincipal` | any logged-in user | a `Principal`; `principal.scope(stmt, Model.customer_id)` limits customers to their own rows |
+
+```python
+@router.post("/plans")
+def create_plan(body: PlanCreate, db: DbSession, admin: AdminUser): ...
+
+@router.get("/invoices")
+def list_invoices(db: DbSession, principal: CurrentPrincipal):
+    stmt = principal.scope(select(Invoice), Invoice.customer_id)
+```
+
+- Foreign keys to customers point at `customers.id` (`app.models.customers.Customer`), never `users.id`.
+- `app/tests/test_rbac_guard.py` fails if a route uses none of these.
+- Test fixtures: `client` (anonymous), `admin_client`, `staff_client`, `customer_client`, `make_user(role)`, `client_as(user)`. `TEST_PASSWORD` and `auth_headers(user)` are in `app.tests.helpers`.
+
 ## Backend conventions
 - All routes live under `/api`. Routers stay thin: business logic goes in `app/services/<domain>`, request and response models in `app/schemas/<domain>`.
-- Get a database session with the `DbSession` dependency from `app.core.db`.
+- Get a database session with the `DbSession` dependency from `app.core.db`. Services flush; the route commits once per request.
 - Models inherit from `app.models.base.Base`, use integer `id` primary keys, and use `TimestampMixin` for `created_at` and `updated_at`. Give every `CheckConstraint` an explicit name, because the naming convention requires it.
 - Store enums as strings with a named check constraint: `sa.Enum(MyEnum, native_enum=False, create_constraint=True, name="my_enum", length=20)`. Native Postgres enum types are hard to change in migrations.
 - Schema changes go through Alembic migrations only, never `Base.metadata.create_all`.

@@ -50,7 +50,7 @@ It erases only the data in **your own local database**:
 - **Deleted for good:** every table and row in it, such as the users, subscriptions and invoices you created while testing, plus the separate test database.
 - **Not touched:** your code, your git history, the Docker images, your teammates' databases, and any Postgres installed directly on your machine.
 
-On the next start, the API recreates the tables (empty) from the migrations, and `docker compose exec api python /scripts/seed.py` puts the demo data back. You only lose records you entered by hand. To keep your data, stop with plain `docker compose down`.
+On the next start, the API recreates the tables from the migrations and creates the demo accounts again automatically. You only lose records you entered by hand. To keep your data, stop with plain `docker compose down`.
 
 ## Running in the background
 
