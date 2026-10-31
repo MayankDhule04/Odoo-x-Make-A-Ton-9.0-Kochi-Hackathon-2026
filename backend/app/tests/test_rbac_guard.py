@@ -15,6 +15,11 @@ from app.main import app
 PUBLIC_ROUTES = {
     ("GET", "/api/health"),  # liveness check for Docker and the web app
     ("POST", "/api/auth/login"),  # anonymous by definition
+    ("POST", "/api/auth/signup"),  # self-registration
+    ("POST", "/api/auth/refresh"),  # uses the httpOnly cookie, not a bearer token
+    ("GET", "/api/auth/password-policy"),  # the frontend checklist
+    ("POST", "/api/auth/forgot-password"),  # anonymous by definition
+    ("POST", "/api/auth/reset-password"),  # uses the one-time token, not a bearer token
 }
 
 
