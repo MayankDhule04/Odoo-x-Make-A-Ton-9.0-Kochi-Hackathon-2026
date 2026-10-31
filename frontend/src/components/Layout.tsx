@@ -15,6 +15,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", to: "/" },
     { label: "Customers", to: "/customers" },
     { label: "Subscriptions", to: "/subscriptions" },
+    { label: "Quotation Templates", to: "/quotation-templates" },
     { label: "Invoices", to: "/invoices" },
     { label: "Payments", to: "/payments" },
     { label: "Catalog", to: "/catalog" },

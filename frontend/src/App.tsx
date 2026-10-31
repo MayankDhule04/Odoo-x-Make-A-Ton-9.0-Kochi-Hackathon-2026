@@ -13,6 +13,9 @@ import ResetPasswordPage from "./features/auth/ResetPasswordPage.js";
 import SignupPage from "./features/auth/SignupPage.js";
 import CatalogPage from "./features/catalog/CatalogPage.js";
 import PlansPage from "./features/catalog/PlansPage.js";
+import QuotationTemplatesPage from "./features/subscriptions/QuotationTemplatesPage.js";
+import SubscriptionDetailPage from "./features/subscriptions/SubscriptionDetailPage.js";
+import SubscriptionsPage from "./features/subscriptions/SubscriptionsPage.js";
 import { RequireAuth, RequireGuest, RequireRole } from "./lib/require-auth.js";
 import DashboardPage from "./pages/DashboardPage.js";
 import NotFoundPage from "./pages/NotFoundPage.js";
@@ -87,10 +90,25 @@ export default function App() {
         <Route
           path="subscriptions"
           element={
-            <PlaceholderPage
-              title="Subscriptions"
-              description="Subscription management will be built by another team member."
-            />
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <SubscriptionsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="subscriptions/:id"
+          element={
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <SubscriptionDetailPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="quotation-templates"
+          element={
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <QuotationTemplatesPage />
+            </RequireRole>
           }
         />
         <Route
