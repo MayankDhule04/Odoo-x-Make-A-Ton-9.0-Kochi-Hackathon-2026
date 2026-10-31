@@ -11,6 +11,8 @@ import ForgotPasswordPage from "./features/auth/ForgotPasswordPage.js";
 import LoginPage from "./features/auth/LoginPage.js";
 import ResetPasswordPage from "./features/auth/ResetPasswordPage.js";
 import SignupPage from "./features/auth/SignupPage.js";
+import CatalogPage from "./features/catalog/CatalogPage.js";
+import PlansPage from "./features/catalog/PlansPage.js";
 import { RequireAuth, RequireGuest, RequireRole } from "./lib/require-auth.js";
 import DashboardPage from "./pages/DashboardPage.js";
 import NotFoundPage from "./pages/NotFoundPage.js";
@@ -115,10 +117,7 @@ export default function App() {
           path="catalog"
           element={
             <RequireRole roles={["ADMIN"]}>
-              <PlaceholderPage
-                title="Catalog"
-                description="Catalog management will be built by another team member."
-              />
+              <CatalogPage />
             </RequireRole>
           }
         />
@@ -126,10 +125,7 @@ export default function App() {
           path="plans"
           element={
             <RequireRole roles={["ADMIN"]}>
-              <PlaceholderPage
-                title="Plans"
-                description="Plan management will be built by another team member."
-              />
+              <PlansPage />
             </RequireRole>
           }
         />
