@@ -8,11 +8,13 @@ from fastapi import APIRouter
 
 from app.api import auth, billing, catalog, health, payments, reporting, subscriptions
 from app.api.auth import customers as auth_customers
+from app.api.auth import audit as auth_audit
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(auth_customers.router)
+api_router.include_router(auth_audit.router)
 api_router.include_router(catalog.router)
 api_router.include_router(subscriptions.router)
 api_router.include_router(billing.router)
