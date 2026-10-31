@@ -13,6 +13,8 @@ import ResetPasswordPage from "./features/auth/ResetPasswordPage.js";
 import SignupPage from "./features/auth/SignupPage.js";
 import CatalogPage from "./features/catalog/CatalogPage.js";
 import PlansPage from "./features/catalog/PlansPage.js";
+import InvoiceDetailPage from "./features/invoices/InvoiceDetailPage.js";
+import InvoicesPage from "./features/invoices/InvoicesPage.js";
 import QuotationTemplatesPage from "./features/subscriptions/QuotationTemplatesPage.js";
 import SubscriptionDetailPage from "./features/subscriptions/SubscriptionDetailPage.js";
 import SubscriptionsPage from "./features/subscriptions/SubscriptionsPage.js";
@@ -114,10 +116,17 @@ export default function App() {
         <Route
           path="invoices"
           element={
-            <PlaceholderPage
-              title="Invoices"
-              description="Invoice management will be built by another team member."
-            />
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <InvoicesPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="invoices/:id"
+          element={
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <InvoiceDetailPage />
+            </RequireRole>
           }
         />
         <Route
@@ -188,10 +197,15 @@ export default function App() {
           path="my/invoices"
           element={
             <RequireRole roles={["CUSTOMER"]}>
-              <PlaceholderPage
-                title="My Invoices"
-                description="Your invoices will appear here."
-              />
+              <InvoicesPage customerMode={true} />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="my/invoices/:id"
+          element={
+            <RequireRole roles={["CUSTOMER"]}>
+              <InvoiceDetailPage customerMode={true} />
             </RequireRole>
           }
         />
