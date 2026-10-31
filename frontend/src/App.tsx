@@ -13,6 +13,7 @@ import ResetPasswordPage from "./features/auth/ResetPasswordPage.js";
 import SignupPage from "./features/auth/SignupPage.js";
 import CatalogPage from "./features/catalog/CatalogPage.js";
 import PlansPage from "./features/catalog/PlansPage.js";
+import PaymentsPage from "./features/payments/PaymentsPage.js";
 import InvoiceDetailPage from "./features/invoices/InvoiceDetailPage.js";
 import InvoicesPage from "./features/invoices/InvoicesPage.js";
 import QuotationTemplatesPage from "./features/subscriptions/QuotationTemplatesPage.js";
@@ -132,10 +133,9 @@ export default function App() {
         <Route
           path="payments"
           element={
-            <PlaceholderPage
-              title="Payments"
-              description="Payment management will be built by another team member."
-            />
+            <RequireRole roles={["ADMIN", "STAFF"]}>
+              <PaymentsPage />
+            </RequireRole>
           }
         />
 
