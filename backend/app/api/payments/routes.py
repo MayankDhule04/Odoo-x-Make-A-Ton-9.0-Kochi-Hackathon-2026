@@ -26,12 +26,13 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 
 
 @router.post("", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
-def record_payment(body: PaymentCreate, db: DbSession, user: StaffOrAdmin) -> Payment:
+def record_payment(body: PaymentCreate, db: DbSession, principal: CurrentPrincipal) -> Payment:
+    """Staff/admin record any payment; a customer may pay/report only on their own invoice."""
     invoice = billing_service.get_invoice(db, body.invoice_id)
-    if invoice is None:
+    if invoice is None or (principal.is_customer and invoice.customer_id != principal.customer_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found.")
     try:
-        payment = payments_service.record_payment(db, invoice, body, actor=user)
+        payment = payments_service.record_payment(db, invoice, body, actor=principal.user)
     except PaymentError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     db.commit()

@@ -129,12 +129,10 @@ def preview_change(
 
 
 @router.post("/{subscription_id}/change", response_model=ChangeResult)
-def apply_change(subscription_id: int, body: ChangeRequest, db: DbSession, user: StaffOrAdmin) -> ChangeResult:
-    sub = sub_service.get_subscription(db, subscription_id)
-    if sub is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+def apply_change(subscription_id: int, body: ChangeRequest, db: DbSession, principal: CurrentPrincipal) -> ChangeResult:
+    sub = _visible_or_404(db, subscription_id, principal)
     try:
-        sub, adjustments, proration = sub_service.apply_change(db, sub, body.lines, actor=user, note=body.note)
+        sub, adjustments, proration = sub_service.apply_change(db, sub, body.lines, actor=principal.user, note=body.note)
     except SubscriptionLookupError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except TransitionError as exc:
@@ -158,7 +156,7 @@ def subscription_adjustments(
 
 # --- Lifecycle actions ---------------------------------------------------------------
 
-def _run_action(
+def _run_staff_action(
     action: Callable[..., Subscription],
     subscription_id: int,
     body: TransitionRequest,
@@ -177,39 +175,60 @@ def _run_action(
     return sub
 
 
+def _run_owner_action(
+    action: Callable[..., Subscription],
+    subscription_id: int,
+    body: TransitionRequest,
+    db: DbSession,
+    principal: Principal,
+) -> Subscription:
+    """Portal-safe action: staff/admin act on any subscription, a customer only on
+    their own (enforced by _visible_or_404)."""
+    sub = _visible_or_404(db, subscription_id, principal)
+    try:
+        sub = action(db, sub, actor=principal.user, note=body.note)
+    except TransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+
+# Sales-side moves stay staff/admin only.
 @router.post("/{subscription_id}/submit", response_model=SubscriptionRead)
 def submit(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.submit, subscription_id, body, db, user)
+    return _run_staff_action(sub_service.submit, subscription_id, body, db, user)
 
 
 @router.post("/{subscription_id}/confirm", response_model=SubscriptionRead)
 def confirm(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.confirm, subscription_id, body, db, user)
+    return _run_staff_action(sub_service.confirm, subscription_id, body, db, user)
 
 
 @router.post("/{subscription_id}/activate", response_model=SubscriptionRead)
 def activate(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.activate, subscription_id, body, db, user)
+    return _run_staff_action(sub_service.activate, subscription_id, body, db, user)
 
 
+# Self-service moves: allowed for the owning customer too (plan flags still enforced).
 @router.post("/{subscription_id}/pause", response_model=SubscriptionRead)
-def pause(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.pause, subscription_id, body, db, user)
+def pause(subscription_id: int, db: DbSession, principal: CurrentPrincipal, body: TransitionRequest = TransitionRequest()):
+    return _run_owner_action(sub_service.pause, subscription_id, body, db, principal)
 
 
 @router.post("/{subscription_id}/resume", response_model=SubscriptionRead)
-def resume(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.resume, subscription_id, body, db, user)
+def resume(subscription_id: int, db: DbSession, principal: CurrentPrincipal, body: TransitionRequest = TransitionRequest()):
+    return _run_owner_action(sub_service.resume, subscription_id, body, db, principal)
 
 
 @router.post("/{subscription_id}/close", response_model=SubscriptionRead)
-def close(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.close, subscription_id, body, db, user)
+def close(subscription_id: int, db: DbSession, principal: CurrentPrincipal, body: TransitionRequest = TransitionRequest()):
+    return _run_owner_action(sub_service.close, subscription_id, body, db, principal)
 
 
 @router.post("/{subscription_id}/renew", response_model=SubscriptionRead)
-def renew(subscription_id: int, db: DbSession, user: StaffOrAdmin, body: TransitionRequest = TransitionRequest()):
-    return _run_action(sub_service.renew, subscription_id, body, db, user)
+def renew(subscription_id: int, db: DbSession, principal: CurrentPrincipal, body: TransitionRequest = TransitionRequest()):
+    return _run_owner_action(sub_service.renew, subscription_id, body, db, principal)
 
 
 @router.post("/{subscription_id}/transition", response_model=SubscriptionRead)
