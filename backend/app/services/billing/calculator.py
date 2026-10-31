@@ -249,3 +249,4 @@ def calculate_subscription_invoice(
         amount_total=grand_total,
         applied_discounts=applied_discounts,
     )
+

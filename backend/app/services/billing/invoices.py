@@ -506,3 +506,4 @@ def render_invoice_html(invoice: Invoice) -> str:
   </div>
 </body>
 </html>"""
+

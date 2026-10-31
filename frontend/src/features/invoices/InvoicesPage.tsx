@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 
 import type { Page } from "../../api/client.js";
 import { api } from "../../api/client.js";
 import { useAuth } from "../../lib/auth-context.js";
 import DryRunModal from "./DryRunModal.js";
-import type { Invoice, InvoiceStatus } from "./types.js";
+import type { Invoice } from "./types.js";
 import { inr, invoiceStatusBadge } from "./types.js";
 
 type Props = {
@@ -14,7 +14,6 @@ type Props = {
 };
 
 export default function InvoicesPage({ customerMode = false }: Props) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isStaffOrAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
@@ -318,3 +317,4 @@ export default function InvoicesPage({ customerMode = false }: Props) {
     </div>
   );
 }
+

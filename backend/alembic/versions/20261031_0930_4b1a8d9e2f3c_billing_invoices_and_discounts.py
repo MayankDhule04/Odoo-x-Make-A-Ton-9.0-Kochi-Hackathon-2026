@@ -123,3 +123,4 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_invoices_number'), table_name='invoices')
     op.drop_index(op.f('ix_invoices_customer_id'), table_name='invoices')
     op.drop_table('invoices')
+

@@ -7,6 +7,15 @@ Each workstream adds its step to app/seed/ and calls it from main() below. Every
 must be idempotent and fast.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path so 'app' is importable both inside containers and on host
+BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 from app.core.db import SessionLocal
 from app.seed.demo_billing import seed_demo_billing
 from app.seed.demo_catalog import seed_demo_catalog

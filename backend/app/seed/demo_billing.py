@@ -98,3 +98,4 @@ def seed_demo_billing(db: Session) -> list[str]:
         created.append(f"invoice '{inv_num}' (CONFIRMED)")
 
     return created
+

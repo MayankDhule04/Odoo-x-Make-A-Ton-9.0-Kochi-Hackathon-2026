@@ -148,3 +148,4 @@ class BillingRunResponse(BaseModel):
     skipped_count: int
     total_amount: Decimal
     invoices: list[InvoiceRead]
+

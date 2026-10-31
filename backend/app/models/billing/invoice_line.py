@@ -1,6 +1,7 @@
 """Invoice lines representing products, taxes, and prorations/discounts."""
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -13,6 +14,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.money import MoneyColumn
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.billing.invoice import Invoice
+    from app.models.catalog.product import Product, ProductVariant
+    from app.models.catalog.tax import Tax
 
 ZERO = Decimal("0.00")
 
@@ -57,3 +63,4 @@ class InvoiceLine(Base):
     product: Mapped["Product"] = relationship("Product")
     variant: Mapped["ProductVariant"] = relationship("ProductVariant")
     tax: Mapped["Tax"] = relationship("Tax")
+

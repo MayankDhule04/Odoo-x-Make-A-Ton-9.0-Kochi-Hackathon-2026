@@ -305,3 +305,4 @@ export default function InvoiceDetailPage({ customerMode = false }: Props) {
     </div>
   );
 }
+

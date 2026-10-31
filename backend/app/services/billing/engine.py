@@ -189,3 +189,4 @@ def run_billing(
         total_amount=total_revenue,
         invoices=created_invoices,
     )
+

@@ -14,6 +14,7 @@ from app.models.catalog import (
     DiscountType,
     Plan,
     Product,
+    ProductType,
     Tax,
 )
 from app.models.customers import Customer
@@ -112,6 +113,7 @@ def test_billing_run_idempotency_and_date_advance(db_session: Session, make_user
     )
     product = Product(
         name="Base Product",
+        type=ProductType.SOFTWARE,
         sales_price=Decimal("500.00"),
         cost_price=Decimal("200.00"),
     )
@@ -189,9 +191,9 @@ def test_invoice_confirm_atomicity_and_discount_usage(db_session: Session, make_
             InvoiceLineIn(
                 description="Discount: Special 100 Off",
                 quantity=1,
-                unit_price=Decimal("-100.00"),
+                unit_price=Decimal("100.00"),
                 discount_amount=Decimal("100.00"),
-                amount=Decimal("-100.00"),
+                amount=Decimal("0.00"),
                 line_type="DISCOUNT",
             ),
         ],
@@ -232,7 +234,7 @@ def test_dry_run_preview_detects_exceptions(db_session: Session, make_user):
         available_from=today - timedelta(days=60),
         available_to=today - timedelta(days=1),  # Expired!
     )
-    product = Product(name="Item", sales_price=Decimal("100.00"), cost_price=Decimal("50.00"))
+    product = Product(name="Item", type=ProductType.SOFTWARE, sales_price=Decimal("100.00"), cost_price=Decimal("50.00"))
     db_session.add_all([plan, product])
     db_session.flush()
 
@@ -255,3 +257,4 @@ def test_dry_run_preview_detects_exceptions(db_session: Session, make_user):
     assert preview.exceptions_count >= 1
     codes = [e.error_code for e in preview.exceptions]
     assert "INACTIVE_CUSTOMER" in codes
+

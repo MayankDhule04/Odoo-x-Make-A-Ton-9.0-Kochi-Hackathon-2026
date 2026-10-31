@@ -8,6 +8,7 @@ Numbering: INV-<year>-<zero-padded id>, sequential without gaps.
 import enum
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -24,6 +25,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.money import CURRENCY, MoneyColumn
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.billing.discount_usage import DiscountUsage
+    from app.models.billing.invoice_line import InvoiceLine
+    from app.models.customers.customer import Customer
+    from app.models.subscriptions.subscription import Subscription
 
 ZERO = Decimal("0.00")
 
@@ -120,3 +127,4 @@ class Invoice(TimestampMixin, Base):
             and self.due_date < date.today()
             and self.amount_due > ZERO
         )
+

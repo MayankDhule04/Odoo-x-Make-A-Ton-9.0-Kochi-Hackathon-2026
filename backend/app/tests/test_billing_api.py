@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.auth.email_outbox import EmailOutbox
 from app.models.billing import Invoice, InvoiceLine, InvoiceStatus
-from app.models.catalog import BillingPeriod, Plan, Product
+from app.models.catalog import BillingPeriod, Plan, Product, ProductType
 from app.models.customers import Customer
 from app.models.subscriptions import PaymentTerms, Subscription, SubscriptionLine, SubscriptionStatus
 
@@ -173,7 +173,7 @@ def test_dry_run_and_run_billing_api(
         available_from=today - timedelta(days=30),
         available_to=today + timedelta(days=365),
     )
-    product = Product(name="API Item", sales_price=Decimal("1200.00"), cost_price=Decimal("600.00"))
+    product = Product(name="API Item", type=ProductType.SOFTWARE, sales_price=Decimal("1200.00"), cost_price=Decimal("600.00"))
     db_session.add_all([plan, product])
     db_session.flush()
 

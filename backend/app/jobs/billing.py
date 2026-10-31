@@ -26,3 +26,4 @@ def run_daily_billing_job(as_of_date: date | None = None) -> BillingRunResult:
         result.total_amount,
     )
     return result
+

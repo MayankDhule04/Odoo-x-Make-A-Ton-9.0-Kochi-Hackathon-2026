@@ -6,6 +6,7 @@ ensuring discount usage limits are enforced and traceable.
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +18,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.money import MoneyColumn
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.billing.invoice import Invoice
+    from app.models.catalog.discount import Discount
+    from app.models.customers.customer import Customer
 
 
 class DiscountUsage(Base):
@@ -43,3 +49,4 @@ class DiscountUsage(Base):
     discount: Mapped["Discount"] = relationship("Discount")
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="discount_usages")
     customer: Mapped["Customer"] = relationship("Customer")
+
