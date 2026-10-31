@@ -6,7 +6,7 @@
 
 A subscription management system: product catalog and plans, quotations, the subscription lifecycle, recurring invoices, payments, dunning, a finance dashboard and a customer self-service portal.
 
-**Status:** Phase 0 project skeleton. The team's split of the work is in [TEAM_TASK_DIVISION.md](TEAM_TASK_DIVISION.md).
+**Status:** the platform foundation and the auth core (login, roles, customer scoping) are in place. Catalog, subscriptions, billing and reporting are in progress.
 
 ## Demo credentials
 

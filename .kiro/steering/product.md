@@ -23,6 +23,5 @@ Money is never wrong: no double billing, no skipped billing, no float math.
 | 3 | Billing runs, invoices, payments | #1 Dunning, #4 Dry-run preview, #5 Revenue at risk |
 | 4 | Finance dashboard, customer portal, shared frontend shell | #3 MRR waterfall, #8 Portal self-service |
 
-## Source documents
-- `kiro_subscription_system_plan.md`: the master prompt, the phased plan, the data model (§C.3), the requirement traceability table (§C.4) and the 5-minute demo script (§C.6). Table names in §C.3 are a shared contract.
-- `TEAM_TASK_DIVISION.md`: who owns what, and the definition of done for each workstream.
+## Planning documents
+The team's planning documents are `kiro_subscription_system_plan.md` (master prompt, phased plan, data model, demo script) and `TEAM_TASK_DIVISION.md` (who owns what, definition of done). They are not in the repository; get them from the team lead. The data model table names are copied into `structure.md` because they are a shared contract.

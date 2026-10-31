@@ -32,6 +32,11 @@ scripts/seed.py             runs the app/seed steps; the API runs it on every st
 | Payments | `api/payments`, `models/payments` | `features/payments` | Member 3 |
 | Reporting and portal | `api/reporting` | `pages`, `components`, `lib`, `features/portal` | Member 4 |
 
+## Data model (shared contract)
+Use exactly these table names: `users`, `customers`, `products`, `product_attributes`, `product_variants`, `plans`, `quotation_templates`, `quotation_template_lines`, `subscriptions`, `subscription_lines`, `subscription_history`, `taxes`, `discounts`, `discount_products`, `discount_usages`, `invoices`, `invoice_lines`, `payments`, `dunning_attempts`, `mrr_events`, `audit_log`, `email_outbox`, `password_reset_tokens`.
+
+Required indexes for the 2-second budget: `subscriptions(status, next_billing_date)`, `invoices(status, due_date)`, `invoices(customer_id)`, `payments(invoice_id)`, and a unique `(subscription_id, period_start, period_end)` on `invoices`.
+
 ## Working rules
 - Work inside your own domain folders. Keep edits to shared files (`app/main.py`, `app/api/router.py`, `app/models/__init__.py`, `docker-compose.yml`, `package.json`, `requirements.txt`) small, and tell the team when you make them.
 - Pull `main` right before creating a migration. If two migrations end up with the same parent, the API container stops at startup with "Multiple head revisions". Fix it with `docker compose run --rm api alembic merge heads -m "merge heads"` and commit the merge migration. The test `test_single_alembic_head` catches the same problem.
