@@ -14,6 +14,7 @@ import SignupPage from "./features/auth/SignupPage.js";
 import CatalogPage from "./features/catalog/CatalogPage.js";
 import PlansPage from "./features/catalog/PlansPage.js";
 import PaymentsPage from "./features/payments/PaymentsPage.js";
+import PortalSubscriptionsPage from "./features/portal/PortalSubscriptionsPage.js";
 import InvoiceDetailPage from "./features/invoices/InvoiceDetailPage.js";
 import InvoicesPage from "./features/invoices/InvoicesPage.js";
 import QuotationTemplatesPage from "./features/subscriptions/QuotationTemplatesPage.js";
@@ -22,7 +23,6 @@ import SubscriptionsPage from "./features/subscriptions/SubscriptionsPage.js";
 import { RequireAuth, RequireGuest, RequireRole } from "./lib/require-auth.js";
 import DashboardPage from "./pages/DashboardPage.js";
 import NotFoundPage from "./pages/NotFoundPage.js";
-import PlaceholderPage from "./pages/PlaceholderPage.js";
 
 export default function App() {
   return (
@@ -186,10 +186,7 @@ export default function App() {
           path="my/subscriptions"
           element={
             <RequireRole roles={["CUSTOMER"]}>
-              <PlaceholderPage
-                title="My Subscriptions"
-                description="Your subscription overview will appear here."
-              />
+              <PortalSubscriptionsPage />
             </RequireRole>
           }
         />
